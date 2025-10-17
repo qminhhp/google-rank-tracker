@@ -41,9 +41,11 @@ Nếu chưa có, tải về từ: https://git-scm.com/
 ### 2.1 Clone project
 
 ```bash
-git clone <repository-url>
-cd search-console-web
+git clone https://github.com/qminhhp/google-rank-tracker.git
+cd google-rank-tracker
 ```
+
+**🌐 Live Demo:** Bạn cũng có thể thử ứng dụng trực tiếp tại: https://google-rank-tracker.vercel.app
 
 ### 2.2 Cài đặt dependencies
 

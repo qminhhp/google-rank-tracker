@@ -101,8 +101,8 @@ search-console-web/
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-username/search-console-web.git
-cd search-console-web
+git clone https://github.com/qminhhp/google-rank-tracker.git
+cd google-rank-tracker
 
 # 2. Install dependencies
 npm install
@@ -122,7 +122,9 @@ npm run dev
 
 ### Option 2: Deploy to Vercel (One-click deployment)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/search-console-web)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/qminhhp/google-rank-tracker)
+
+**🌐 Live Demo:** [https://google-rank-tracker.vercel.app](https://google-rank-tracker.vercel.app)
 
 ### Option 3: Deploy to Custom Server
 

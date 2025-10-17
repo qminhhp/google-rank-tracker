@@ -30,7 +30,7 @@ Trong Vercel project settings, thêm các environment variables:
 ```
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-NEXT_PUBLIC_BASE_URL=https://your-domain.vercel.app
+NEXT_PUBLIC_BASE_URL=https://google-rank-tracker.vercel.app
 ```
 
 **Lưu ý quan trọng:**
@@ -44,7 +44,7 @@ NEXT_PUBLIC_BASE_URL=https://your-domain.vercel.app
 3. Chọn OAuth client ID của bạn
 4. Thêm redirect URI mới:
    ```
-   https://your-domain.vercel.app/api/auth/callback
+   https://google-rank-tracker.vercel.app/api/auth/callback
    ```
 5. Click "Save"
 
