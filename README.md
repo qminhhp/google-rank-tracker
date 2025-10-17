@@ -191,8 +191,16 @@ Create file `.env.local`:
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 
-# Application URLs
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
+# Application URL (Optional - Auto-detected)
+# The app automatically detects URLs:
+# - Development: Uses current localhost port (3000, 3001, etc.)
+# - Vercel: Uses VERCEL_URL automatically
+# Only set this if you need to override the default behavior
+# NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# Development port (Optional)
+# If running on a different port than 3000
+# PORT=3001
 
 # Optional: Debug mode
 NODE_ENV=development
@@ -250,6 +258,30 @@ npm test
 ---
 
 ## 🌐 Deployment
+
+### 🔗 URL Configuration
+
+Ứng dụng tự động nhận diện URL cho từng môi trường:
+
+**Development (localhost):**
+- Tự động detect port hiện tại (3000, 3001, 3002, etc.)
+- Không cần cấu hình `NEXT_PUBLIC_BASE_URL`
+- Chỉ cần chạy: `npm run dev` hoặc `PORT=3001 npm run dev`
+
+**Vercel Deployment:**
+- Tự động sử dụng `VERCEL_URL` environment variable
+- Không cần cấu hình thêm
+- URL callback tự động được set đúng
+
+**Custom Server:**
+- Set `NEXT_PUBLIC_BASE_URL` trong environment variables
+- Ví dụ: `NEXT_PUBLIC_BASE_URL=https://your-domain.com`
+
+**Google OAuth Redirect URIs:**
+Bạn cần thêm các redirect URIs sau vào Google Cloud Console:
+- Development: `http://localhost:3000/api/auth/callback`
+- Development (other ports): `http://localhost:3001/api/auth/callback`
+- Production: `https://your-domain.com/api/auth/callback`
 
 ### Vercel (Recommended)
 

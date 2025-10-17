@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCallbackUrl } from '@/lib/url';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     // Test bằng cách tạo OAuth URL - nếu credentials hợp lệ thì sẽ tạo được URL
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000')}/api/auth/callback&` +
+      `redirect_uri=${encodeURIComponent(getCallbackUrl())}&` +
       `response_type=code&` +
       `scope=${encodeURIComponent('https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile')}&` +
       `access_type=offline&` +

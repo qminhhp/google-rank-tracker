@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getCredentialsFromRequest, validateCredentials } from '@/lib/credentials';
+import { getCallbackUrl } from '@/lib/url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     const oauth2Client = new google.auth.OAuth2(
       validatedCredentials.clientId,
       validatedCredentials.clientSecret,
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/callback`
+      getCallbackUrl()
     );
 
     // Generate authorization URL

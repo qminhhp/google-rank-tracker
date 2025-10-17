@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getCredentialsFromRequest, validateCredentials } from '@/lib/credentials';
+import { getBaseUrl, getCallbackUrl } from '@/lib/url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,13 +12,13 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('OAuth error:', error);
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?error=auth_failed`
+        `${getBaseUrl()}?error=auth_failed`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?error=no_code`
+        `${getBaseUrl()}?error=no_code`
       );
     }
 
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     const oauth2Client = new google.auth.OAuth2(
       validatedCredentials.clientId,
       validatedCredentials.clientSecret,
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/callback`
+      getCallbackUrl()
     );
 
     // Exchange code for tokens
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Create session
     const response = NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}`
+      getBaseUrl()
     );
 
     // Set secure cookies
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error handling OAuth callback:', error);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?error=callback_failed`
+      `${getBaseUrl()}?error=callback_failed`
     );
   }
 }
