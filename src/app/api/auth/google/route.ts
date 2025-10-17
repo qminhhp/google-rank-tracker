@@ -49,11 +49,14 @@ export async function GET(request: NextRequest) {
     
     const validatedCredentials = validateCredentials(credentials);
 
+    const callbackUrl = getCallbackUrl();
+    console.log('[OAuth] Callback URL being used:', callbackUrl);
+
     // OAuth2 configuration
     const oauth2Client = new google.auth.OAuth2(
       validatedCredentials.clientId,
       validatedCredentials.clientSecret,
-      getCallbackUrl()
+      callbackUrl
     );
 
     // Generate authorization URL
