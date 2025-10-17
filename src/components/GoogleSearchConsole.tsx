@@ -49,6 +49,8 @@ export function GoogleSearchConsole({ user }: { user: User }) {
   const [progress, setProgress] = useState(0);
   const [currentKeyword, setCurrentKeyword] = useState('');
   const [error, setError] = useState('');
+  const [sortColumn, setSortColumn] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     loadSites();
@@ -224,6 +226,77 @@ export function GoogleSearchConsole({ user }: { user: User }) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedResults = () => {
+    if (!sortColumn) return results;
+
+    const sorted = [...results].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      // Handle different column types
+      switch (sortColumn) {
+        case 'keyword':
+          aValue = a.keyword.toLowerCase();
+          bValue = b.keyword.toLowerCase();
+          break;
+        case 'clicks':
+          aValue = a.clicks;
+          bValue = b.clicks;
+          break;
+        case 'impressions':
+          aValue = a.impressions;
+          bValue = b.impressions;
+          break;
+        case 'avgPosition':
+          aValue = a.avgPosition || 999; // Put items without position at the end
+          bValue = b.avgPosition || 999;
+          break;
+        case 'ctr':
+          aValue = a.ctr;
+          bValue = b.ctr;
+          break;
+        default:
+          // Handle date columns
+          if (sortColumn.startsWith('date-')) {
+            const dateStr = sortColumn.replace('date-', '');
+            const aDaily = a.dailyData?.find(d => d.date === dateStr);
+            const bDaily = b.dailyData?.find(d => d.date === dateStr);
+            aValue = aDaily?.avgPosition || 999;
+            bValue = bDaily?.avgPosition || 999;
+          } else {
+            return 0;
+          }
+      }
+
+      // Compare values
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  const renderSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <span className="ml-1 text-gray-400">⇅</span>;
+    }
+    return sortDirection === 'asc' ?
+      <span className="ml-1 text-blue-600">↑</span> :
+      <span className="ml-1 text-blue-600">↓</span>;
   };
 
   return (
@@ -461,30 +534,67 @@ export function GoogleSearchConsole({ user }: { user: User }) {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
-                      Từ khóa
+                    <th
+                      onClick={() => handleSort('keyword')}
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10 cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center">
+                        Từ khóa
+                        {renderSortIcon('keyword')}
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tổng Clicks
+                    <th
+                      onClick={() => handleSort('clicks')}
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center">
+                        Tổng Clicks
+                        {renderSortIcon('clicks')}
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tổng Impressions
+                    <th
+                      onClick={() => handleSort('impressions')}
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center">
+                        Tổng Impressions
+                        {renderSortIcon('impressions')}
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Vị trí TB
+                    <th
+                      onClick={() => handleSort('avgPosition')}
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center">
+                        Vị trí TB
+                        {renderSortIcon('avgPosition')}
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      CTR (%)
+                    <th
+                      onClick={() => handleSort('ctr')}
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center">
+                        CTR (%)
+                        {renderSortIcon('ctr')}
+                      </div>
                     </th>
                     {getAllDates().map((date) => (
-                      <th key={date} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        {formatDate(date)}
+                      <th
+                        key={date}
+                        onClick={() => handleSort(`date-${date}`)}
+                        className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none"
+                      >
+                        <div className="flex items-center justify-center">
+                          {formatDate(date)}
+                          {renderSortIcon(`date-${date}`)}
+                        </div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {results.map((result, index) => (
+                  {getSortedResults().map((result, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white">
                         {result.keyword}
