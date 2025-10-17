@@ -91,6 +91,7 @@ export function GoogleSearchConsole({ user }: { user: User }) {
     setProgress(0);
     setError('');
     setResults([]);
+    setCurrentKeyword('');
 
     try {
       const response = await fetch('/api/search-console/search', {
@@ -113,19 +114,54 @@ export function GoogleSearchConsole({ user }: { user: User }) {
         throw new Error('Lỗi khi tìm kiếm');
       }
 
-      const data = await response.json();
-      
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResults(data.results || []);
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      const tempResults: SearchResult[] = [];
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            break;
+          }
+
+          // Decode the chunk
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n').filter(line => line.trim());
+
+          for (const line of lines) {
+            try {
+              const message = JSON.parse(line);
+
+              if (message.type === 'result') {
+                // Add result to list
+                tempResults.push(message.data);
+                setResults([...tempResults]);
+
+                // Update progress
+                if (message.progress) {
+                  setProgress(message.progress.percentage);
+                  setCurrentKeyword(message.data.keyword);
+                }
+              } else if (message.type === 'complete') {
+                // Processing complete
+                console.log('Processing complete:', message.summary);
+                setProgress(100);
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+              console.warn('Failed to parse message:', line);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error searching:', error);
       setError('Không thể tìm kiếm dữ liệu');
     } finally {
       setIsSearching(false);
-      setProgress(0);
       setCurrentKeyword('');
     }
   };

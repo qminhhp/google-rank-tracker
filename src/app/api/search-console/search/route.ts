@@ -185,6 +185,16 @@ function calculateMetrics(data: any, startDate: string, endDate: string) {
   };
 }
 
+// Rate limiter configuration
+// Google Search Console API limits: 1,200 QPM (20 QPS)
+// We use conservative limits to avoid hitting quotas
+const RATE_LIMIT = {
+  MAX_REQUESTS_PER_MINUTE: 1000, // Conservative limit (below 1,200)
+  DELAY_BETWEEN_REQUESTS_MS: 70,  // ~14 requests/second
+  BATCH_SIZE: 50,                  // Process in smaller batches
+  DELAY_BETWEEN_BATCHES_MS: 2000   // 2 second pause between batches
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -202,59 +212,136 @@ export async function POST(request: NextRequest) {
 
     const { startDate, endDate } = calculateDateRange(dateRange, customStartDate, customEndDate);
 
-    const results = [];
+    // Use streaming to avoid timeout and show progress
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const totalKeywords = keywords.length;
+        let processedCount = 0;
+        let successCount = 0;
+        let errorCount = 0;
 
-    // Process keywords in batches to respect rate limits
-    const batchSize = 100;
-    for (let i = 0; i < keywords.length; i += batchSize) {
-      const batch = keywords.slice(i, i + batchSize);
-      
-      for (const keyword of batch) {
-        try {
-          const data = await getKeywordRankings(
-            searchconsole,
-            site,
-            keyword,
-            startDate,
-            endDate,
-            country,
-            searchType
-          );
+        console.log(`[Search API] Starting to process ${totalKeywords} keywords`);
 
-          const metrics = calculateMetrics(data, startDate, endDate);
+        // Process keywords in batches
+        for (let i = 0; i < keywords.length; i += RATE_LIMIT.BATCH_SIZE) {
+          const batch = keywords.slice(i, i + RATE_LIMIT.BATCH_SIZE);
+          const batchNumber = Math.floor(i / RATE_LIMIT.BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(keywords.length / RATE_LIMIT.BATCH_SIZE);
 
-          results.push({
-            keyword,
-            data,
-            ...metrics
-          });
+          console.log(`[Search API] Processing batch ${batchNumber}/${totalBatches} (${batch.length} keywords)`);
 
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error(`Error fetching data for keyword "${keyword}":`, error);
-          results.push({
-            keyword,
-            data: null,
-            clicks: 0,
-            impressions: 0,
-            avgPosition: 0,
-            ctr: 0,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
+          for (const keyword of batch) {
+            try {
+              const data = await getKeywordRankings(
+                searchconsole,
+                site,
+                keyword,
+                startDate,
+                endDate,
+                country,
+                searchType
+              );
+
+              const metrics = calculateMetrics(data, startDate, endDate);
+
+              const result = {
+                keyword,
+                data,
+                ...metrics
+              };
+
+              // Send result to client
+              const message = JSON.stringify({
+                type: 'result',
+                data: result,
+                progress: {
+                  processed: processedCount + 1,
+                  total: totalKeywords,
+                  percentage: Math.round(((processedCount + 1) / totalKeywords) * 100),
+                  success: successCount + 1,
+                  errors: errorCount
+                }
+              }) + '\n';
+
+              controller.enqueue(encoder.encode(message));
+
+              processedCount++;
+              successCount++;
+
+              // Delay to respect rate limits
+              await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.DELAY_BETWEEN_REQUESTS_MS));
+            } catch (error) {
+              console.error(`[Search API] Error for keyword "${keyword}":`, error);
+
+              const errorResult = {
+                keyword,
+                data: null,
+                clicks: 0,
+                impressions: 0,
+                avgPosition: 0,
+                ctr: 0,
+                dailyData: [],
+                error: error instanceof Error ? error.message : 'Unknown error'
+              };
+
+              // Send error result to client
+              const message = JSON.stringify({
+                type: 'result',
+                data: errorResult,
+                progress: {
+                  processed: processedCount + 1,
+                  total: totalKeywords,
+                  percentage: Math.round(((processedCount + 1) / totalKeywords) * 100),
+                  success: successCount,
+                  errors: errorCount + 1
+                }
+              }) + '\n';
+
+              controller.enqueue(encoder.encode(message));
+
+              processedCount++;
+              errorCount++;
+
+              // Continue with delay even on error
+              await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.DELAY_BETWEEN_REQUESTS_MS));
+            }
+          }
+
+          // Longer delay between batches to avoid quota issues
+          if (i + RATE_LIMIT.BATCH_SIZE < keywords.length) {
+            console.log(`[Search API] Batch ${batchNumber} complete. Waiting ${RATE_LIMIT.DELAY_BETWEEN_BATCHES_MS}ms before next batch...`);
+            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.DELAY_BETWEEN_BATCHES_MS));
+          }
         }
-      }
 
-      // Longer delay between batches
-      if (i + batchSize < keywords.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
+        // Send completion message
+        const completionMessage = JSON.stringify({
+          type: 'complete',
+          summary: {
+            total: totalKeywords,
+            success: successCount,
+            errors: errorCount
+          }
+        }) + '\n';
 
-    return NextResponse.json({ results });
+        controller.enqueue(encoder.encode(completionMessage));
+        controller.close();
+
+        console.log(`[Search API] Completed. Success: ${successCount}, Errors: ${errorCount}`);
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    });
   } catch (error) {
-    console.error('Error in search API:', error);
-    
+    console.error('[Search API] Fatal error:', error);
+
     if (error instanceof Error && error.message === 'Not authenticated') {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -263,7 +350,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to search rankings' },
+      { error: 'Failed to search rankings', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
