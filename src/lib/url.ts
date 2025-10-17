@@ -8,19 +8,17 @@ export function getBaseUrl(): string {
     return window.location.origin;
   }
 
-  // Vercel deployment
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  // Custom domain on Vercel
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-  }
-
-  // Explicit base URL from environment
+  // Explicit base URL from environment (highest priority for server-side)
   if (process.env.NEXT_PUBLIC_BASE_URL) {
     return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+
+  // Vercel deployment - check multiple environment variables
+  // VERCEL_URL is provided by Vercel but doesn't include protocol
+  const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+  if (vercelUrl) {
+    // Ensure HTTPS for Vercel URLs
+    return vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`;
   }
 
   // Development fallback - use PORT environment variable if available
